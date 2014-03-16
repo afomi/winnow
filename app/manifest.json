@@ -1,11 +1,13 @@
 {
     "name": "Winnow",
     "description": "Send one or more tabs to other windows",
-    "version": "0.0.71",
+    "version": "0.0.147",
+    "author": "https://github.com/afomi",
     "manifest_version": 2,
     "icons": {
-        "16": "images/icon-16.png",
-        "128": "images/icon-128.png"
+        "16": "images/icon128.png",
+        "48": "images/icon128.png",
+        "128": "images/icon128.png"
     },
     "default_locale": "en",
     "background": {
@@ -16,8 +18,8 @@
     },
     "browser_action": {
         "default_icon": {
-            "16": "images/icon-16.png",
-            "128": "images/icon-128.png"
+            "19": "images/icon38.png",
+            "38": "images/icon38.png"
         },
         "default_title": "Winnow",
         "default_popup": "popup.html"

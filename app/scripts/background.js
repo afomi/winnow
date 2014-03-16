@@ -1,131 +1,132 @@
 'use strict';
 
-// Chrome-Extension ENV
-var bg = function () {
-  return chrome.extension.getBackgroundPage();
-}
+var currentWindowId;
+var chromeWindowsArray;
+var windowIds = new Array();
+// names = {
+//  windowId : 'Name 1',
+//  21098765 : 'Name 2',
+//  77777777 : 'Name 3'
+// }
+var names = {};
+var activeTab;
 
-var tabArray = [];
-function getTabs() {
-  chrome.tabs.query({}, function(tabs) {
-    tabArray = tabs;
+$(function() {
+  // when the Chrome Extension Toolbar icon is clicked...
+  init();
+});
+
+// CONTROLLER
+function init() {
+
+  // set names from Local Storage
+  chrome.storage.local.get('names', function(obj) {
+    console.log('Getting names from local cache');
+    names = obj.names;
+    console.log('Set an instance of names to');
+    console.log(names);
+    draw();
   });
-  return true;
-}
 
-var windowArray = [];
-function getWindows() {
-  chrome.windows.getAll({}, function(windows) {
-    windowArray = windows;
+  // find Chome Window and Tab values, and set variables
+  chrome.windows.getCurrent({}, function(currentWindow) {
+    currentWindowId = currentWindow.id;
+    console.log("Set currentWindowId to " + currentWindowId);
   });
-  return true;
+
+  chrome.windows.getAll({}, function(chromeWindows) {
+    chromeWindowsArray = chromeWindows;
+    $.each(chromeWindows, function(i, chromeWindow) {
+      windowIds.push(chromeWindow.id);
+    });
+
+    windowIds = $.unique(windowIds);
+    console.log("Set windowIds to " + windowIds);
+
+    // Views
+    draw();
+  });
 }
 
-// UI
-function toggleButtonsOff() {
-  $("button").removeClass("btn-primary");
-}
+// VIEW
+//
+// draw() assumes the defined ## (at the top) are set:
+function draw() {
+  $("#window-buttons").empty();
+  $("input[name='window-name']").val(names[currentWindowId]);
 
-function showMe() {
-  getWindows();
-  getTabs();
+  // Draw buttons, and exclude the currentWindow
+  $.each(windowIds, function(i, chromeWindowId) {
+    if (chromeWindowId != currentWindowId) {
+      drawButton(chromeWindowId);
+    }
+  });
 
-  console.log(tabArray);
-  console.log(windowArray);
-}
+  // set activeTab
+  chrome.tabs.getSelected(function(tab) {
+    activeTab = tab;
+  });
 
-function setWindowId() {
-  chrome.windows.getCurrent({}, function(currentWindow){
-    console.log('setWindowId:' + currentWindow.id);
-    $("#id").text(currentWindow.id);
+  $("#save-name").click(function() {
+    setWindowNamefromInput();
   })
 }
 
-function setWindowName() {
-  $("#name").text("Some Name");
-}
-
-
+// This is the primary function of this Extension
 function sendCurrentTabToWindow(tabId, winId) {
   chrome.tabs.move(tabId,
                   { 'windowId' : winId, 'index' : -1 },
-                  function (res){
-    console.log(res);
+                    function (res) {
+                      console.log(res);
   })
 }
 
-function setWindowNames() {
-  chrome.windows.getAll({}, function(all) {
-    // all is []
-    $.each(all, function(i, chromeWindow) {
-      if (chromeWindow.id != $("#id").text()) {
-        var newButton = $("#window-button").clone();
-        newButton.removeClass('hide');
-        newButton.text(chromeWindow.id);
+function drawButton(chromeWindowId) {
+  var newButton = $("#window-button.template").clone();
+  newButton.removeClass('hide');
+  newButton.removeAttr('id');
+  newButton.addClass('window-button');
+  newButton.attr('data-id', chromeWindowId);
+  newButton.text(names[chromeWindowId]);
 
-        newButton.click(function(){
-          var windowId = parseInt($(this).text());
-          var tabId = parseInt($("#active-tab-id").text());
-          sendCurrentTabToWindow(tabId, windowId);
-        });
+  newButton.click(function() {
+    sendCurrentTabToWindow(activeTab.id, parseInt($(this).attr('data-id')));
+    console.log('sendCurrentTabToWindow()');
+  });
 
-        $("#window-buttons").append(newButton);
-      }
-    });
+  $("#window-buttons").append(newButton);
+  return true;
+}
+
+function setWindowNamefromInput() {
+  var name = $("input[name='window-name']").val();
+
+  names[currentWindowId] = name;
+  console.log(names);
+  chrome.storage.local.set({ 'names': names }, function(a) {
+    console.log('Saving names to local cache');
+    console.log(a);
+    return true;
   });
 }
 
-// DATA
-var cpord = {
-  "status" : "idle",
-  "active" : "do"
-};
+function saveChanges() {
+  // Get a value saved in a form.
+  var inputValue = $("input[name='window-name']").val();
 
-// using the convention "win-189":"a custom window name"
-var windowNames = {
-};
-
-function setStatus(status) {
-  cpord.status = status;
+  // Check that there's some code there.
+  if (!inputValue) {
+    message('Error: No value specified');
+    return;
+  }
+  // Save it using the Chrome extension storage API.
+  chrome.storage.local.set({'value': inputValue}, function() {
+    // Notify that we saved.
+    alert('hi');
+    message('Settings saved');
+  });
 }
 
-function getStatus(status) {
-  return cpord.status;
+function setName(windowId, name) {
+  names[windowId] = name;
 }
-
-function updateState (id) {
-  bg().setStatus(id);
-}
-
-function setActiveTab() {
-  chrome.tabs.getSelected(function(tab) {
-    $("#active-tab-id").text(tab.id);
-  });
-};
-
-// INIT
-$(function() {
-  // when the Popup loads...
-  $("button").click(function() {
-    toggleButtonsOff();
-    $(this).addClass("btn-primary");
-    chrome.browserAction.setIcon({path: ('/images/' + $(this).attr('id') + '-icon-48.png') });
-    updateState($(this).attr('id'));
-  });
-
-  // Toggle the appropriate button when the popup loads
-  $("button#" + bg().getStatus()).addClass("btn-primary");
-
-  $("#do").click(function(){
-    showMe();
-  });
-
-  $("#win3").click(function(){
-    setWindowId();
-  });
-
-  setWindowId();
-  setWindowName();
-  setWindowNames();
-  setActiveTab();
-});
