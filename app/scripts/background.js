@@ -21,6 +21,7 @@ function init() {
 
   // set names from Local Storage
   chrome.storage.local.get('names', function(obj) {
+    ensureLocalStore(obj);
     console.log('Getting names from local cache');
     names = obj.names;
     console.log('Set an instance of names to');
@@ -110,23 +111,12 @@ function setWindowNamefromInput() {
   });
 }
 
-function saveChanges() {
-  // Get a value saved in a form.
-  var inputValue = $("input[name='window-name']").val();
-
-  // Check that there's some code there.
-  if (!inputValue) {
-    message('Error: No value specified');
-    return;
+function ensureLocalStore(obj) {
+  if (typeof(obj) == 'undefined') {
+    chrome.storage.local.set({ 'names': names }, function(a) {
+      console.log('Setting empty names {} in local cache');
+      console.log(a);
+      return true;
+    });
   }
-  // Save it using the Chrome extension storage API.
-  chrome.storage.local.set({'value': inputValue}, function() {
-    // Notify that we saved.
-    alert('hi');
-    message('Settings saved');
-  });
-}
-
-function setName(windowId, name) {
-  names[windowId] = name;
 }
